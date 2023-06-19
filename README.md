@@ -71,83 +71,6 @@ To connect the components, use the following wiring and ports:
 
 This project implements a door control system using an Arduino board. The system includes rain and sunlight detection capabilities to protect clothes from rain and lack of sunlight. The code controls a stepper motor connected to a chain drive mechanism, allowing automated opening and closing based on weather conditions. Additionally, manual control is provided to override the automated functionality.
 
-## Components Used
-
-- Arduino board (e.g., Arduino Uno)
-- Rain sensor module
-- Light sensor module
-- Stepper motor
-- Stepper motor driver module
-- Chain drive mechanism (e.g., sprockets, chain, and guides)
-- Jumper wires
-- Power supply (for Arduino board and motor)
-
-## Description
-
-The Door Control System with Rain and Sunlight Detection is designed to protect clothes from rain and snow by automating the opening and closing of a door using a chain drive mechanism. The system utilizes an Arduino board, rain and sunlight sensor modules, a stepper motor, a stepper motor driver module, and the chain drive components. The Arduino code reads analog values from the rain and sunlight sensors to determine weather conditions and control the stepper motor, which in turn operates the chain drive mechanism.
-
-### Arduino Code Functionality
-
-The Arduino code implements the following functionality:
-
-- Reading analog values from the rain and sunlight sensor modules to detect weather conditions.
-- Opening the door if rain is detected above the rain threshold.
-- Closing the door if no sunlight is detected below the light threshold.
-- Providing manual control options to override the automated system.
-
-### Wiring and Ports
-
-To connect the components, use the following wiring and ports:
-
-#### Chain Drive Mechanism
-
-- Connect the stepper motor to the chain drive mechanism, ensuring proper alignment and tension.
-- Install sprockets and guides to guide the chain and provide smooth movement.
-
-#### Wires Connection Ports
-
-- Rain Sensor:
-  - Connect the VCC pin of the rain sensor to the 5V pin on the Arduino board.
-  - Connect the GND pin of the rain sensor to the GND pin on the Arduino board.
-  - Connect the analog output pin of the rain sensor to any analog input pin on the Arduino board.
-
-- Sunlight Sensor:
-  - Connect the VCC pin of the sunlight sensor to the 5V pin on the Arduino board.
-  - Connect the GND pin of the sunlight sensor to the GND pin on the Arduino board.
-  - Connect the analog output pin of the sunlight sensor to any analog input pin on the Arduino board.
-
-- Stepper Motor:
-  - Connect the stepper motor's coil wires to the corresponding pins on the stepper motor driver module. Refer to the datasheet or documentation of your stepper motor for the specific wire configuration.
-  - Connect the stepper motor driver module's control pins (STEP, DIR, and EN) to digital output pins on the Arduino board. Note the chosen pins for each connection.
-
-- Stepper Motor Driver Module:
-  - Connect the VCC and GND pins of the stepper motor driver module to the 5V and GND pins on the Arduino board, respectively.
-  - Connect the control pins (STEP, DIR, and EN) of the stepper motor driver module to digital output pins on the Arduino board. Note the chosen pins for each connection.
-
-#### Manual Control Ports
-
-- Manual Button:
-  - Connect one terminal of the manual button to a digital input pin on the Arduino board.
-  - Connect the other terminal of the manual button to the GND pin on the Arduino board.
-
-- Manual Potentiometer:
-  - Connect one end of the potentiometer to the 5V pin on the Arduino board.
-  - Connect the other end of the potentiometer to the GND pin on the Arduino board.
-  - Connect the wiper (middle pin) of the potentiometer to an analog input pin on the Arduino board.
-
-
-description:
-The Arduino board reads analog values from the rain sensor and light sensor modules to determine weather conditions. The rain sensor, connected to pin A0, detects rain by measuring the analog output. The light sensor, connected to pin A1, detects sunlight based on the analog output. The code sets threshold values to determine rain and sunlight presence.
-
-If rain is detected (analog value above the rain threshold), the code opens the door by running the motor in one direction. If no sunlight is detected (analog value below the light threshold), the code closes the door to protect from snow. The motor driver module is utilized to control the motor's direction and provide sufficient power.
-
-Manual control is implemented through three digital pins. By sending signals to the respective pins, users can manually control the motor's forward, reverse, and stop functions, overriding the automated system.
-
-Note:
-This door control system with rain and sunlight detection offers an automated solution for protecting clothes from rain and lack of sunlight. The rain sensor detects rain, prompting the system to open the door. Similarly, the light sensor detects the absence of sunlight, leading to door closure for snow protection. Manual control is available for user intervention.
-
-To use the system, assemble the required components and wire them according to the provided pin connections. Upload the provided Arduino code to the board and ensure that the necessary libraries for the sensors are installed. Connect an appropriate power supply for the Arduino and motor. Once powered on, the system will operate automatically based on weather conditions, while manual control can be utilized when desired.
-
 
 ## Project Overview
 
@@ -188,63 +111,150 @@ The Huifebg umbrella door mechanism is a specialized component designed to provi
 ## Source Code
 
 ```cpp
-#include <Stepper.h>
+#include <Wire.h>
 
-// Define the number of steps per revolution for the stepper motor
-const int stepsPerRevolution = 200;
+const int lightSensorAddr = 0x23;  // I2C address of the light sensor
+const int lightThreshold = 100;    // Light threshold value
+const int rainSensorPin = A0;      // Pin connected to the rain sensor
+const int forwardButtonPin = 6;   // Pin connected to the forward button
+const int backwardButtonPin = 7;  // Pin connected to the backward button
 
-// Create an instance of the Stepper class
-Stepper motor(stepsPerRevolution, 8, 9, 10, 11);
+// Define the pin connections for the stepper motor driver
+const int stepPin = 2;
+const int dirPin = 3;
+const int sleepPin = 4;  // Sleep control pin
+const int resetPin = 5;  // Reset control pin
 
-// Pin connections for rain and light sensors
-const int rainSensorPin = A0;
-const int lightSensorPin = A1;
+const int mk = 8;
 
-// Threshold values for rain and sunlight detection
-const int rainThreshold = 500;
-const int lightThreshold = 200;
+const int rainThreshold = 700;     // Threshold value for rain detection
 
-// Variables to store the current state of the door
-boolean doorOpen = false;
+const int stepsPerRevolution = 200; // Define the steps per revolution for the stepper motor
+
+const int stepDelay = 2000; // Define the delay between steps (in microseconds)
+
+boolean motorOn = false; // Motor status
+boolean isLight = false; // Light status
+boolean saveMovement = false; // Save movement for automatic backward operation
+boolean forwardButtonPressed = false; // Forward button state
+boolean backwardButtonPressed = false; // Backward button state
 
 void setup() {
-  // Set the motor speed
-  motor.setSpeed(100);
-  
-  // Set the rain and light sensor pins as inputs
-  pinMode(rainSensorPin, INPUT);
-  pinMode(lightSensorPin, INPUT);
+  Wire.begin();                  // Initialize I2C communication
+  pinMode(rainSensorPin, INPUT); // Set the rain sensor pin as input
+  pinMode(forwardButtonPin, INPUT_PULLUP); // Set the forward button pin as input
+  pinMode(backwardButtonPin, INPUT_PULLUP); // Set the backward button pin as input
+  pinMode(stepPin, OUTPUT);      // Set the step pin as output
+  pinMode(dirPin, OUTPUT);       // Set the direction pin as output
+  pinMode(sleepPin, OUTPUT);     // Set the sleep pin as output
+  pinMode(resetPin, OUTPUT);     // Set the reset pin as output
+   pinMode(mk, OUTPUT);     // Set the "On" indicator LED pin as output
+  // pinMode(rainLightPin, OUTPUT);     // Set the "Rain" indicator LED pin as output
+  // pinMode(lightLightPin, OUTPUT);     // Set the "Light" indicator LED pin as output
+  // pinMode(forwardLightPin, OUTPUT);     // Set the "Forward" indicator LED pin as output
+  // pinMode(backwardLightPin, OUTPUT);     // Set the "Backward" indicator LED pin as output
 }
 
 void loop() {
-  // Read analog values from rain and light sensors
-  int rainSensorValue = analogRead(rainSensorPin);
-  int lightSensorValue = analogRead(lightSensorPin);
-  
-  // Check if it's raining
-  if (rainSensorValue > rainThreshold) {
-    if (!doorOpen) {
-      openDoor();
+  int rainSensorValue = analogRead(rainSensorPin);  // Read the rain sensor value
+  int lightLevel = getLightLevel();                 // Read the light level
+
+  if (lightLevel > lightThreshold) {
+    isLight = true;
+    // digitalWrite(rainLightPin, HIGH); // Turn on the "Rain" indicator LED
+  } else {
+    isLight = false;
+    // digitalWrite(rainLightPin, LOW); // Turn off the "Rain" indicator LED
+  }
+
+  forwardButtonPressed = digitalRead(forwardButtonPin) == LOW;
+  backwardButtonPressed = digitalRead(backwardButtonPin) == LOW;
+
+  if (forwardButtonPressed) {
+    digitalWrite(mk, LOW); // Turn on the "On" indicator LED
+    
+    forward();  // Run motor forward
+    saveMovement = true;
+  }
+  if (backwardButtonPressed) {
+    
+    digitalWrite(mk, HIGH); // Turn on the "On" indicator LED
+    backward(); // Run motor backward
+    saveMovement = false;
+  }
+  if (rainSensorValue < rainThreshold) {
+    if (isLight && !motorOn) {
+      
+      forward();  // Run motor forward
+      motorOn = true;
+      saveMovement = true;
+    }
+  } else {
+    if (isLight && motorOn && !saveMovement) {
+      backward();  // Run motor backward
+      motorOn = false;
     }
   }
-  // Check if there is no sunlight (for snow protection)
-  else if (lightSensorValue < lightThreshold) {
-    if (doorOpen) {
-      closeDoor();
-    }
+
+  delay(500);  // Delay for stability
+}
+
+int getLightLevel() {
+  Wire.beginTransmission(lightSensorAddr);
+  Wire.write(0x10);  // Send measurement command
+  Wire.endTransmission();
+
+  Wire.requestFrom(lightSensorAddr, 2);
+  if (Wire.available()) {
+    int highByte = Wire.read();
+    int lowByte = Wire.read();
+    int lightLevel = (highByte << 8) + lowByte;
+    return lightLevel;
   }
+
+  return 0;  // Return 0 if no data received
 }
 
-// Function to open the door
-void openDoor() {
-  motor.step(stepsPerRevolution);
-  doorOpen = true;
+void forward() {
+  // digitalWrite(forwardLightPin, HIGH); // Turn on the "Forward" indicator LED
+
+  digitalWrite(sleepPin, HIGH);  // Set sleep pin to HIGH to keep the motor awake initially
+  digitalWrite(resetPin, HIGH);
+
+  digitalWrite(dirPin, HIGH);  // Set the motor direction to forward
+
+  for (int i = 0; i < (10 * stepsPerRevolution); i++) {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(stepDelay);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(stepDelay);
+  }
+
+  digitalWrite(sleepPin, LOW);  // Put the motor to sleep
+  digitalWrite(resetPin, LOW);
+
+  // digitalWrite(forwardLightPin, LOW); // Turn off the "Forward" indicator LED
 }
 
-// Function to close the door
-void closeDoor() {
-  motor.step(-stepsPerRevolution);
-  doorOpen = false;
+void backward() {
+  // digitalWrite(backwardLightPin, HIGH); // Turn on the "Backward" indicator LED
+
+  digitalWrite(sleepPin, HIGH);  // Set sleep pin to HIGH to keep the motor awake initially
+  digitalWrite(resetPin, HIGH);
+
+  digitalWrite(dirPin, LOW);  // Set the motor direction to backward
+
+  for (int i = 0; i < (10 * stepsPerRevolution); i++) {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(stepDelay);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(stepDelay);
+  }
+
+  digitalWrite(sleepPin, LOW);  // Put the motor to sleep
+  digitalWrite(resetPin, LOW);
+
+  // digitalWrite(backwardLightPin, LOW); // Turn off the "Backward" indicator LED
 }
 ```
 
@@ -280,18 +290,4 @@ The `setup()` function is called once when the Arduino board is powered on. It i
 
 ### Loop Function
 
-The `loop()` function is the main execution loop of the program. It performs the following tasks repeatedly:
-
-- Read the analog values from the rain and light sensors using `analogRead()`.
-
-- Check if it's raining by comparing the rain sensor value with the rain threshold. If rain is detected and the door is not already open, the `openDoor()` function is called.
-
-- Check if there is no sunlight by comparing the light sensor value with the light threshold. If no sunlight is detected and the door is already open, the `closeDoor()` function is called.
-
-### Open Door Function
-
-The `openDoor()` function is responsible for opening the door. It calls the `step()` function of the `motor` object to rotate the stepper motor one revolution in the desired direction. The `doorOpen` variable is updated to reflect the current state of the door.
-
-### Close Door Function
-
-The `closeDoor()` function is responsible for closing the door. It calls the `step()` function of the `motor` object to rotate the stepper motor one revolution in the opposite direction. The `doorOpen` variable is updated to reflect the current state of the door.
+The `loop()` function is the main execution loop of the program.

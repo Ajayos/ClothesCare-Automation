@@ -3,6 +3,72 @@ Automated weather-based clothes protection system using Arduino, rain/sunlight s
 
 # Door Control System with Rain and Sunlight Detection
 
+The Door Control System with Rain and Sunlight Detection is an automated system designed to protect clothes from rain and snow. The project utilizes an Arduino board, rain and sunlight sensors, a stepper motor, a stepper motor driver module, and a chain drive mechanism to control the opening and closing of a door based on weather conditions. The system provides both automated and manual control options.
+
+## Components Used
+
+- Arduino board (e.g., Arduino Uno)
+- Rain sensor module
+- Light sensor module
+- Stepper motor
+- Stepper motor driver module
+- Chain drive mechanism (e.g., sprockets, chain, and guides)
+- Jumper wires
+- Power supply (for Arduino board and motor)
+
+## Description
+
+The Door Control System with Rain and Sunlight Detection is designed to protect clothes from rain and snow by automating the opening and closing of a door using a chain drive mechanism. The system utilizes an Arduino board, rain and sunlight sensor modules, a stepper motor, a stepper motor driver module, and the chain drive components. The Arduino code reads analog values from the rain and sunlight sensors to determine weather conditions and control the stepper motor, which in turn operates the chain drive mechanism.
+
+### Arduino Code Functionality
+
+The Arduino code implements the following functionality:
+
+- Reading analog values from the rain and sunlight sensor modules to detect weather conditions.
+- Opening the door if rain is detected above the rain threshold.
+- Closing the door if no sunlight is detected below the light threshold.
+- Providing manual control options to override the automated system.
+
+### Wiring and Ports
+
+To connect the components, use the following wiring and ports:
+
+#### Chain Drive Mechanism
+
+- Connect the stepper motor to the chain drive mechanism, ensuring proper alignment and tension.
+- Install sprockets and guides to guide the chain and provide smooth movement.
+
+#### Wiring Connections
+
+- Rain Sensor:
+  - Connect the VCC pin of the rain sensor to the 5V pin on the Arduino board.
+  - Connect the GND pin of the rain sensor to the GND pin on the Arduino board.
+  - Connect the analog output pin of the rain sensor to any analog input pin on the Arduino board.
+
+- Sunlight Sensor:
+  - Connect the VCC pin of the sunlight sensor to the 5V pin on the Arduino board.
+  - Connect the GND pin of the sunlight sensor to the GND pin on the Arduino board.
+  - Connect the analog output pin of the sunlight sensor to any analog input pin on the Arduino board.
+
+- Stepper Motor:
+  - Connect the stepper motor's coil wires to the corresponding pins on the stepper motor driver module. Refer to the datasheet or documentation of your stepper motor for the specific wire configuration.
+  - Connect the stepper motor driver module's control pins (STEP, DIR, and EN) to digital output pins on the Arduino board. Note the chosen pins for each connection.
+
+- Stepper Motor Driver Module:
+  - Connect the VCC and GND pins of the stepper motor driver module to the 5V and GND pins on the Arduino board, respectively.
+  - Connect the control pins (STEP, DIR, and EN) of the stepper motor driver module to digital output pins on the Arduino board. Note the chosen pins for each connection.
+
+#### Manual Control Ports
+
+- Manual Button:
+  - Connect one terminal of the manual button to a digital input pin on the Arduino board.
+  - Connect the other terminal of the manual button to the GND pin on the Arduino board.
+
+- Manual Potentiometer:
+  - Connect one end of the potentiometer to the 5V.
+
+# Door Control System with Rain and Sunlight Detection
+
 This project implements a door control system using an Arduino board. The system includes rain and sunlight detection capabilities to protect clothes from rain and lack of sunlight. The code controls a stepper motor connected to a chain drive mechanism, allowing automated opening and closing based on weather conditions. Additionally, manual control is provided to override the automated functionality.
 
 ## Components Used
